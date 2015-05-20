@@ -802,6 +802,10 @@ int main(int argc, const char * argv[]) {
     } while (strcmp(buffer, "exit") != 0);
     f.close();
     
+    salveaza_FAV_in_fisier(radFAV, ultimFAV);
+    salveaza_REPasageri_in_fisier(primREP);
+    salveaza_RUZ_TD_in_fisier(elem);
+    
     
     return 0;
 }
