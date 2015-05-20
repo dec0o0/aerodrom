@@ -37,7 +37,7 @@ void afiseaza_FIFO(paramFIFO *rad){
     // aici o sa fac interpretarea
 }
 
-/// FAV
+/// FAV //////////////////// LISTA DUBLA INLANTUITA CIRCULARA
 
 struct nodFAV{
     char *idAeronava;
@@ -102,7 +102,7 @@ void populeaza_FAV_din_fisier(nodFAV *&rad, nodFAV *&ultim){
         f >> x;
         f >> y;
         insereaza_FAV(rad, ultim, buff, strcmp(buff1, "CARGO") == 0, x, y);
-        cout << "Am adaugat din fisier aeronava : " << buff << " " << buff1 << " " << x << " " << y << endl;
+        cout << "Am adaugat aeronava : " << buff << " " << buff1 << " " << x << " " << y << endl;
     }
     f.close();
 }
@@ -141,7 +141,7 @@ void sterge_FAV(nodFAV *elem){
     }
 }
 
-/// RUZ
+/// RUZ /////////////////////// TABELA DE DISPERSIE
 
 struct nodRUZ_TD{
     nodFAV * aeronava;
@@ -276,12 +276,16 @@ void citeste_RUZ_TD_din_fisier(nodRUZ_TD **elem, nodFAV* rad, nodFAV *ultim){
     f.close();
 }
 
-/// REP
+/// REP ///////////////////// LISTA DE LISTE
 
 struct nodPasager{
     char *nume, *prenume;
     int costBilet;
     nodPasager *urm;
+    
+    void afiseaza(){
+        cout << nume << " " << prenume << " " << costBilet << endl;
+    }
 };
 
 struct nodREP{
@@ -301,19 +305,110 @@ nodPasager *creeaza_pasager(char *n, char *p, int cost){
 }
 
 nodREP *adauga_REP(nodREP *rad, nodRUZ_TD *zbor){
-    
+    nodREP *nou = new nodREP;
+    nou->zbor = zbor;
+    nou->pasageri = NULL;
+    nou->urm = NULL;
+    if (rad == NULL)
+        return nou;
+    else{
+        nodREP * aux = rad;
+        if (strcmp(rad->zbor->idZbor , zbor->idZbor) == 0)
+            return rad;
+        else{
+            while (aux->urm != NULL){
+                if (strcmp(rad->zbor->idZbor , zbor->idZbor) == 0)
+                    return rad;
+                aux = aux->urm;
+            }
+            aux->urm = nou;
+            return rad;
+        }
+    }
 }
 
 nodREP *populeaza_REP_cu_zborurile_distincte(nodRUZ_TD **elem){
     nodREP* rad = NULL;
     for (int i = 0; i < MARIME_TD; i++){
         nodRUZ_TD *aux = elem[i];
-        if (aux != NULL){
-            
+        while (aux != NULL){
+            rad = adauga_REP(rad, aux);
+            aux = aux->urm;
         }
     }
-    
     return rad;
+}
+
+void afisREP(nodREP *prim){
+    nodREP *aux = prim;
+    while (aux != NULL){
+        cout << "Cod zbor: " << aux->zbor->idZbor << endl;
+        nodPasager *pasager = aux->pasageri;
+        while (pasager != NULL){
+            cout << " * ";
+            pasager->afiseaza();
+            pasager = pasager->urm;
+        }
+        aux = aux->urm;
+    }
+}
+
+void adauga_REPasager(nodREP *&prim, char *idZbor, char *n, char *p, int cost){
+    nodREP *aux = prim;
+    while (aux != NULL){
+        if (strcmp(aux->zbor->idZbor, idZbor) == 0){
+            nodPasager *cap = aux->pasageri;
+            nodPasager *nou = creeaza_pasager(n, p, cost);
+            if (cap == NULL)
+                aux->pasageri = nou;
+            else{
+                while (cap->urm != NULL)
+                    cap = cap->urm;
+                cap->urm = nou;
+            }
+            cout << "Am adaugat pasagerul : ";
+            nou->afiseaza();
+            break;
+        }
+        aux = aux->urm;
+    }
+}
+
+void adauga_REPasageri_din_fisier(nodREP *&prim){
+    ifstream f("/Users/macbookproritena/Documents/xcode projects/c++/aerodrom/aerodrom/pasageri.txt");
+    while (!f.eof()){
+        char buff[256], nume[256], prenume[256];
+        int pret;
+        f >> buff;
+        f >> nume;
+        f >> prenume;
+        f >> pret;
+        adauga_REPasager(prim, buff, nume, prenume, pret);
+    }
+    f.close();
+}
+
+void salveaza_REPasageri_in_fisier(nodREP *prim){
+    fstream f("/Users/macbookproritena/Documents/xcode projects/c++/aerodrom/aerodrom/pasageri.txt", ios::out);
+    nodREP *aux = prim;
+    while (aux!=NULL){
+        nodPasager * pasager = aux->pasageri;
+        if (pasager != NULL){
+            while (pasager != NULL){
+                f << aux->zbor->idZbor;
+                f << " ";
+                f << pasager->nume;
+                f << " ";
+                f << pasager->prenume;
+                f << " ";
+                f << pasager->costBilet;
+                f << endl;
+                pasager = pasager->urm;
+            }
+        }
+        aux = aux->urm;
+    }
+    f.close();
 }
 
 int main(int argc, const char * argv[]) {
@@ -355,7 +450,13 @@ int main(int argc, const char * argv[]) {
     
     //salveaza_RUZ_TD_in_fisier(elem);
     
-    
+    cout << endl;
+    nodREP * primREP = NULL;
+    primREP = populeaza_REP_cu_zborurile_distincte(elem);
+    //
+    adauga_REPasageri_din_fisier(primREP);
+    cout << endl;
+    afisREP(primREP);
     
     
     
