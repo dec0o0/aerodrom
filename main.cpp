@@ -279,12 +279,12 @@ void citeste_RUZ_TD_din_fisier(nodRUZ_TD **elem, nodFAV* rad, nodFAV *ultim){
 /// REP ///////////////////// LISTA DE LISTE
 
 struct nodPasager{
-    char *nume, *prenume;
+    char *nume, *prenume, *idRezervare;
     int costBilet;
     nodPasager *urm;
     
     void afiseaza(){
-        cout << nume << " " << prenume << " " << costBilet << endl;
+        cout << idRezervare << " " << nume << " " << prenume << " " << costBilet << endl;
     }
 };
 
@@ -294,13 +294,15 @@ struct nodREP{
     nodREP *urm;
 };
 
-nodPasager *creeaza_pasager(char *n, char *p, int cost){
+nodPasager *creeaza_pasager(char *n, char *p, char *id, int cost){
     nodPasager * nou = new nodPasager;
     nou->nume = new char[strlen(n) + 1];
     strcpy(nou->nume, n);
     nou->prenume = new char[strlen(p) + 1];
     strcpy(nou->prenume, p);
     nou->costBilet = cost;
+    nou->idRezervare = new char[strlen(id) + 1];
+    strcpy(nou->idRezervare, id);
     return nou;
 }
 
@@ -353,12 +355,12 @@ void afisREP(nodREP *prim){
     }
 }
 
-void adauga_REPasager(nodREP *&prim, char *idZbor, char *n, char *p, int cost){
+void adauga_REPasager(nodREP *&prim, char *idZbor, char *idR, char *n, char *p, int cost){
     nodREP *aux = prim;
     while (aux != NULL){
         if (strcmp(aux->zbor->idZbor, idZbor) == 0){
             nodPasager *cap = aux->pasageri;
-            nodPasager *nou = creeaza_pasager(n, p, cost);
+            nodPasager *nou = creeaza_pasager(n, p, idR, cost);
             if (cap == NULL)
                 aux->pasageri = nou;
             else{
@@ -377,13 +379,14 @@ void adauga_REPasager(nodREP *&prim, char *idZbor, char *n, char *p, int cost){
 void adauga_REPasageri_din_fisier(nodREP *&prim){
     ifstream f("/Users/macbookproritena/Documents/xcode projects/c++/aerodrom/aerodrom/pasageri.txt");
     while (!f.eof()){
-        char buff[256], nume[256], prenume[256];
+        char buff[256], nume[256], prenume[256], idR[246];
         int pret;
         f >> buff;
+        f >> idR;
         f >> nume;
         f >> prenume;
         f >> pret;
-        adauga_REPasager(prim, buff, nume, prenume, pret);
+        adauga_REPasager(prim, buff, idR, nume, prenume, pret);
     }
     f.close();
 }
@@ -396,6 +399,8 @@ void salveaza_REPasageri_in_fisier(nodREP *prim){
         if (pasager != NULL){
             while (pasager != NULL){
                 f << aux->zbor->idZbor;
+                f << " ";
+                f << pasager->idRezervare;
                 f << " ";
                 f << pasager->nume;
                 f << " ";
@@ -410,6 +415,46 @@ void salveaza_REPasageri_in_fisier(nodREP *prim){
     }
     f.close();
 }
+
+nodPasager * cautare_REPasager(nodREP *prim, char *idR){
+    nodREP *cap = prim;
+    while (cap){
+        nodPasager * pasager = cap->pasageri;
+        while (pasager){
+            if (strcmp(pasager->idRezervare, idR) == 0)
+                return pasager;
+            pasager = pasager->urm;
+        }
+        cap = cap->urm;
+    }
+    return NULL;
+}
+
+bool sterge_REPasager(nodREP *prim, char *idR){
+    nodREP *cap = prim;
+    while (cap){
+        nodPasager * pasager = cap->pasageri;
+        while (pasager->urm != NULL && strcmp(pasager->urm->idRezervare, idR) != 0){
+            pasager = pasager->urm;
+        }
+        if (strcmp(pasager->urm->idRezervare, idR) == 0){
+            nodPasager * de_sters = pasager->urm;
+            pasager->urm = de_sters->urm;
+            delete[] de_sters->nume;
+            delete[] de_sters->prenume;
+            delete[] de_sters->idRezervare;
+            delete de_sters;
+            return true;
+        }
+        
+        cap = cap->urm;
+    }
+    return false;
+}
+
+/// CAR /////////////////
+
+
 
 int main(int argc, const char * argv[]) {
     
