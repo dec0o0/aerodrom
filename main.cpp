@@ -144,8 +144,13 @@ void sterge_FAV(nodFAV *elem){
 
 struct nodRUZ_TD{
     nodFAV * aeronava;
-    short int ora, minut;
+    char *dest;
+    short int ora, costuriTotaleRuta;
     nodRUZ_TD *urm;
+    
+    void afiseaza(){
+        cout << aeronava->idAeronava << " " << dest << " " << ora << "-" << costuriTotaleRuta << endl;
+    }
 };
 
 nodRUZ_TD** aloca_RUZ_TD(nodRUZ_TD **elem){
@@ -164,9 +169,63 @@ int hash_RUZ(char *id){
     return ans % MARIME_TD;
 }
 
-void inserare_RUZ_TD(nodRUZ_TD **&elem, int ora, int min, char *id){
+void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, int ora, char *dest, char *id){
     if (elem != NULL){
+        nodFAV *aeronava = cauta_FAV(rad, ultim, id);
+        if (aeronava != NULL){
+            int poz = hash_RUZ(aeronava->idAeronava);
+            nodRUZ_TD *nou = new nodRUZ_TD;
+            nou->aeronava = aeronava;
+            nou->ora = ora;
+            nou->dest = new char[strlen(dest) + 1];
+            strcpy(nou->dest, dest);
+            nou->urm = NULL;
+            if (elem[poz] == NULL)
+                elem[poz] = nou;
+            else{
+                nodRUZ_TD * aux = elem[poz];
+                while (aux->urm != NULL)
+                    aux = aux->urm;
+                aux->urm = nou;
+            }
+            cout << "Am adaugat zborul: " << id << " " << dest << ":" << ora << endl;
+        }
+        else
+            cout << "ERROR: Adaugarea a esuat, aeronava " << id << " nu exista in flota. (inserare_ruz_td)\n";
+    }
+}
+
+nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *id, int ora){
+    if (elem != NULL){
+        int poz = hash_RUZ(id);
+        nodRUZ_TD * aux = elem[poz];
+        while (aux != NULL){
+            if (strcmp(aux->aeronava->idAeronava, id) == 0 && aux->ora == ora)
+                return aux;
+            aux = aux->urm;
+        }
+    }
+    return NULL;
+}
+
+void sterge_zbor_RUZ(nodRUZ_TD **&elem, char *id, int ora){
+    if (elem != NULL){
+        int poz = hash_RUZ(id);
+        nodRUZ_TD * aux = elem[poz];
         
+    }
+}
+
+void afis_RUZ(nodRUZ_TD **elem){
+    for (int i = 0; i < MARIME_TD; i++){
+        nodRUZ_TD * aux = elem[i];
+        if (aux){
+            cout << i << "- ";
+            while (aux != NULL){
+                aux->afiseaza();
+                aux = aux->urm;
+            }
+        }
     }
 }
 
@@ -175,8 +234,9 @@ int main(int argc, const char * argv[]) {
     nodFAV *radFAV, *ultimFAV;
     radFAV = ultimFAV = NULL;
     
-    //ok populeaza_FAV_din_fisier(radFAV, ultimFAV);
-    //ok afsieaza_FAV(radFAV, ultimFAV);
+    cout << "FAV";
+    populeaza_FAV_din_fisier(radFAV, ultimFAV);
+    afsieaza_FAV(radFAV, ultimFAV);
     
     /*
     nodFAV * x= cauta_FAV(radFAV, ultimFAV, "23AA");
@@ -193,11 +253,11 @@ int main(int argc, const char * argv[]) {
     nodRUZ_TD ** elem = NULL;
     elem = aloca_RUZ_TD(elem);
     
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, 11, "Mallorca", "23A");
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, 12, "Madrid", "55X");
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, 10, "Brugges", "23AA");
     
-    cout << hash_RUZ("masa");
-    cout << "\n" << hash_RUZ("casa");
-    cout << "\n" << hash_RUZ("dinu");
-    
+    afis_RUZ(elem);
     
     
     /*
