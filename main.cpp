@@ -145,12 +145,12 @@ void sterge_FAV(nodFAV *elem){
 
 struct nodRUZ_TD{
     nodFAV * aeronava;
-    char *dest;
+    char *dest, *idZbor;
     short int ora, costuriTotaleRuta;
     nodRUZ_TD *urm;
     
     void afiseaza(){
-        cout << aeronava->idAeronava << " " << dest << " " << ora << "-" << costuriTotaleRuta << endl;
+        cout << idZbor << " " << aeronava->idAeronava << " " << dest << " " << ora << "-" << costuriTotaleRuta << endl;
     }
 };
 
@@ -170,29 +170,14 @@ int hash_RUZ(char *id){
     return ans % MARIME_TD;
 }
 
-bool zbor_programabil_RUZ(nodRUZ_TD *rad, char *id, int ora){
-    if (rad == NULL)
-        return true;
-    nodRUZ_TD * aux= rad;
-    while (aux!=NULL){
-        int delta = aux->ora - ora;
-        if (strcmp(aux->aeronava->idAeronava, id) == 0 && abs(delta) > 1)
-            return true;
-        aux = aux->urm;
-    }
-    return false;
-}
-
-void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, int ora, char *dest, char *id){
+void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId, int ora, char *dest, char *idAero){
     if (elem != NULL){
-        nodFAV *aeronava = cauta_FAV(rad, ultim, id);
+        nodFAV *aeronava = cauta_FAV(rad, ultim, idAero);
         if (aeronava != NULL){
-            int poz = hash_RUZ(aeronava->idAeronava);
-            if (!zbor_programabil_RUZ(elem[poz], id, ora)){
-                cout << "ERROR: Zborul nu poate fi programat datorita orei nepotrivite.\n";
-                return;
-            }
+            int poz = hash_RUZ(idAero);
             nodRUZ_TD *nou = new nodRUZ_TD;
+            nou->idZbor = new char[strlen(zborId) + 1];
+            strcpy(nou->idZbor, zborId);
             nou->aeronava = aeronava;
             nou->ora = ora;
             nou->dest = new char[strlen(dest) + 1];
@@ -206,20 +191,20 @@ void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, int ora, cha
                     aux = aux->urm;
                 aux->urm = nou;
             }
-            cout << "Am adaugat zborul: " << id << " " << dest << ":" << ora << endl;
+            cout << "Am adaugat zborul: " << zborId << " " << dest << ":" << ora << endl;
         }
         else
-            cout << "ERROR: Adaugarea a esuat, aeronava " << id << " nu exista in flota. (inserare_ruz_td)\n";
+            cout << "ERROR: Adaugarea a esuat, aeronava " << idAero << " nu exista in flota. (inserare_ruz_td)\n";
     }
 }
 
 
-nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *id, int ora){
+nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *idZbor, int ora){
     if (elem != NULL){
-        int poz = hash_RUZ(id);
+        int poz = hash_RUZ(idZbor);
         nodRUZ_TD * aux = elem[poz];
         while (aux != NULL){
-            if (strcmp(aux->aeronava->idAeronava, id) == 0 && aux->ora == ora)
+            if (strcmp(aux->idZbor, idZbor) == 0 && aux->ora == ora)
                 return aux;
             aux = aux->urm;
         }
@@ -227,18 +212,18 @@ nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *id, int ora){
     return NULL;
 }
 
-void sterge_zbor_RUZ(nodRUZ_TD **&elem, char *id, int ora){
+void sterge_zbor_RUZ(nodRUZ_TD **&elem, char *idZbor, int ora){
     if (elem != NULL){
-        int poz = hash_RUZ(id);
+        int poz = hash_RUZ(idZbor);
         nodRUZ_TD * aux = elem[poz];
         if (aux != NULL){
-            if (strcmp(aux->aeronava->idAeronava, id) == 0 && aux->ora == ora){
+            if (strcmp(aux->idZbor, idZbor) == 0 && aux->ora == ora){
                 elem[poz] = aux->urm;
             }
             else{
-                while (aux->urm != NULL && strcmp(aux->urm->aeronava->idAeronava, id) != 0 && aux->urm->ora != ora)
+                while (aux->urm != NULL && strcmp(aux->urm->idZbor, idZbor) != 0 && aux->urm->ora != ora)
                     aux = aux->urm;
-                if (strcmp(aux->urm->aeronava->idAeronava, id) == 0 && aux->urm->ora == ora){
+                if (strcmp(aux->urm->idZbor, idZbor) == 0 && aux->urm->ora == ora){
                     nodRUZ_TD * de_sters = aux->urm;
                     aux->urm = de_sters->urm;
                     delete[] de_sters->dest;
@@ -269,7 +254,7 @@ void salveaza_RUZ_TD_in_fisier(nodRUZ_TD **elem){
             if (elem[i] != NULL){
                 nodRUZ_TD *aux = elem[i];
                 while (aux != NULL){
-                    f << aux->aeronava->idAeronava << " " << aux->dest << " " << aux->ora << endl;
+                    f << aux->idZbor << " " << aux->aeronava->idAeronava << " " << aux->dest << " " << aux->ora << endl;
                     aux = aux->urm;
                 }
             }
@@ -280,12 +265,13 @@ void salveaza_RUZ_TD_in_fisier(nodRUZ_TD **elem){
 void citeste_RUZ_TD_din_fisier(nodRUZ_TD **elem, nodFAV* rad, nodFAV *ultim){
     ifstream f("/Users/macbookproritena/Documents/xcode projects/c++/aerodrom/aerodrom/program.txt");
     while (!f.eof()){
-        char buff[256], buff1[256];
+        char buff[256], buff1[256], buff2[256];
         int ora;
         f >> buff;
         f >> buff1;
+        f >> buff2;
         f >> ora;
-        inserare_RUZ_TD(elem, rad, ultim, ora, buff1, buff);
+        inserare_RUZ_TD(elem, rad, ultim, buff, ora, buff2, buff1);
     }
     f.close();
 }
@@ -319,14 +305,16 @@ int main(int argc, const char * argv[]) {
     elem = aloca_RUZ_TD(elem);
     
     citeste_RUZ_TD_din_fisier(elem, radFAV, ultimFAV);
-    /*
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, 11, "Mallorca", "23A");
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, 12, "Cluj", "23A");
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, 12, "Madrid", "55X");
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, 10, "Brugges", "23AA");
-     */
-    
+/*
+    //inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId, int ora, char *dest, char *idAero)
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, "111x", 11, "Mallorca", "23A");
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, "11xvv", 12, "Cluj", "23A");
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, "vx", 12, "Madrid", "55X");
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, "vx12", 10, "Brugges", "23AA");
+
+    */
     afis_RUZ(elem);
+    //salveaza_RUZ_TD_in_fisier(elem);
     
     /*
      paramFIFO *rad = NULL;
