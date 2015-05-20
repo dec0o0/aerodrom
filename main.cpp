@@ -102,7 +102,7 @@ void populeaza_FAV_din_fisier(nodFAV *&rad, nodFAV *&ultim){
         f >> x;
         f >> y;
         insereaza_FAV(rad, ultim, buff, strcmp(buff1, "CARGO") == 0, x, y);
-        cout << "Am adaugat din fisier zborul : " << buff << " " << buff1 << " " << x << " " << y << endl;
+        cout << "Am adaugat din fisier aeronava : " << buff << " " << buff1 << " " << x << " " << y << endl;
     }
     f.close();
 }
@@ -174,7 +174,7 @@ void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId
     if (elem != NULL){
         nodFAV *aeronava = cauta_FAV(rad, ultim, idAero);
         if (aeronava != NULL){
-            int poz = hash_RUZ(idAero);
+            int poz = hash_RUZ(zborId);
             nodRUZ_TD *nou = new nodRUZ_TD;
             nou->idZbor = new char[strlen(zborId) + 1];
             strcpy(nou->idZbor, zborId);
@@ -204,7 +204,7 @@ nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *idZbor, int ora){
         int poz = hash_RUZ(idZbor);
         nodRUZ_TD * aux = elem[poz];
         while (aux != NULL){
-            if (strcmp(aux->idZbor, idZbor) == 0 && aux->ora == ora)
+            if (strcmp(aux->idZbor, idZbor))
                 return aux;
             aux = aux->urm;
         }
@@ -217,13 +217,13 @@ void sterge_zbor_RUZ(nodRUZ_TD **&elem, char *idZbor, int ora){
         int poz = hash_RUZ(idZbor);
         nodRUZ_TD * aux = elem[poz];
         if (aux != NULL){
-            if (strcmp(aux->idZbor, idZbor) == 0 && aux->ora == ora){
+            if (strcmp(aux->idZbor, idZbor)){
                 elem[poz] = aux->urm;
             }
             else{
-                while (aux->urm != NULL && strcmp(aux->urm->idZbor, idZbor) != 0 && aux->urm->ora != ora)
+                while (aux->urm != NULL && strcmp(aux->urm->idZbor, idZbor) != 0)
                     aux = aux->urm;
-                if (strcmp(aux->urm->idZbor, idZbor) == 0 && aux->urm->ora == ora){
+                if (strcmp(aux->urm->idZbor, idZbor) == 0){
                     nodRUZ_TD * de_sters = aux->urm;
                     aux->urm = de_sters->urm;
                     delete[] de_sters->dest;
@@ -278,13 +278,49 @@ void citeste_RUZ_TD_din_fisier(nodRUZ_TD **elem, nodFAV* rad, nodFAV *ultim){
 
 /// REP
 
+struct nodPasager{
+    char *nume, *prenume;
+    int costBilet;
+    nodPasager *urm;
+};
+
+struct nodREP{
+    nodRUZ_TD *zbor;
+    nodPasager *pasageri;
+    nodREP *urm;
+};
+
+nodPasager *creeaza_pasager(char *n, char *p, int cost){
+    nodPasager * nou = new nodPasager;
+    nou->nume = new char[strlen(n) + 1];
+    strcpy(nou->nume, n);
+    nou->prenume = new char[strlen(p) + 1];
+    strcpy(nou->prenume, p);
+    nou->costBilet = cost;
+    return nou;
+}
+
+nodREP *adauga_REP(nodREP *rad, nodRUZ_TD *zbor){
+    
+}
+
+nodREP *populeaza_REP_cu_zborurile_distincte(nodRUZ_TD **elem){
+    nodREP* rad = NULL;
+    for (int i = 0; i < MARIME_TD; i++){
+        nodRUZ_TD *aux = elem[i];
+        if (aux != NULL){
+            
+        }
+    }
+    
+    return rad;
+}
 
 int main(int argc, const char * argv[]) {
     
     nodFAV *radFAV, *ultimFAV;
     radFAV = ultimFAV = NULL;
     
-    cout << "FAV\n";
     populeaza_FAV_din_fisier(radFAV, ultimFAV);
     //afsieaza_FAV(radFAV, ultimFAV);
     cout << endl;
@@ -305,6 +341,7 @@ int main(int argc, const char * argv[]) {
     elem = aloca_RUZ_TD(elem);
     
     citeste_RUZ_TD_din_fisier(elem, radFAV, ultimFAV);
+    
 /*
     //inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId, int ora, char *dest, char *idAero)
     inserare_RUZ_TD(elem, radFAV, ultimFAV, "111x", 11, "Mallorca", "23A");
@@ -313,8 +350,14 @@ int main(int argc, const char * argv[]) {
     inserare_RUZ_TD(elem, radFAV, ultimFAV, "vx12", 10, "Brugges", "23AA");
 
     */
-    afis_RUZ(elem);
+    
+    //afis_RUZ(elem);
+    
     //salveaza_RUZ_TD_in_fisier(elem);
+    
+    
+    
+    
     
     /*
      paramFIFO *rad = NULL;
