@@ -8,34 +8,13 @@
 
 #include <iostream>
 #include <fstream>
+#include <ctime>
 #include <cmath>
+#include <stdio.h>
+#include <stdlib.h>
 #define MARIME_TD 100
+#define NR_MAX_REZERVARI 20
 using namespace std;
-
-struct paramFIFO{
-    char *text;
-    paramFIFO *next;
-};
-
-paramFIFO* insereaza_param(paramFIFO *rad, char *text){
-    paramFIFO * nou = new paramFIFO;
-    nou->text = new char[strlen(text) + 1];
-    strcpy(nou->text, text);
-    nou->next = NULL;
-    if (rad != NULL)
-        nou->next = rad;
-    return nou;
-}
-
-void afiseaza_FIFO(paramFIFO *rad){
-    paramFIFO * temp = rad;
-    while (temp != NULL){
-        cout << temp->text << endl;
-        temp = temp->next;
-    }
-    
-    // aici o sa fac interpretarea
-}
 
 /// FAV //////////////////// LISTA DUBLA INLANTUITA CIRCULARA
 
@@ -77,6 +56,7 @@ void insereaza_FAV(nodFAV *&rad, nodFAV *&ultim, char *idA, bool cargo, short in
         ultim = nou;
         rad->prec = ultim;
     }
+    cout << "Am adaugat aeronava: " << idA << " " << (cargo==true? "CARGO" : "PERSONAL") << " " << nr << " " << greu << endl;
 }
 
 void afsieaza_FAV(nodFAV *cap, nodFAV *coada)
@@ -102,7 +82,6 @@ void populeaza_FAV_din_fisier(nodFAV *&rad, nodFAV *&ultim){
         f >> x;
         f >> y;
         insereaza_FAV(rad, ultim, buff, strcmp(buff1, "CARGO") == 0, x, y);
-        cout << "Am adaugat aeronava : " << buff << " " << buff1 << " " << x << " " << y << endl;
     }
     f.close();
 }
@@ -131,14 +110,16 @@ nodFAV* cauta_FAV(nodFAV *rad, nodFAV *ultim, char *id){
     return NULL;
 }
 
-void sterge_FAV(nodFAV *elem){
+bool sterge_FAV(nodFAV *elem){
     if (elem != NULL){
         elem->urm->prec = elem->prec;
         elem->prec->urm = elem->urm;
         
         delete []elem->idAeronava;
         delete elem;
+        return true;
     }
+    return false;
 }
 
 /// RUZ /////////////////////// TABELA DE DISPERSIE
@@ -170,10 +151,28 @@ int hash_RUZ(char *id){
     return ans % MARIME_TD;
 }
 
+bool are_timp_de_pregatire(nodRUZ_TD **elem, char *zborId, int ora){
+    for (int i = 0; i < MARIME_TD; i++){
+        nodRUZ_TD *aux = elem[i];
+        while (aux!=NULL){
+            int delta = aux->ora - ora;
+            if (strcmp(aux->idZbor, zborId) == 0 && abs(delta) > 2)
+                return false;
+            aux = aux->urm;
+        }
+    }
+    return true;
+}
+
 void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId, int ora, char *dest, char *idAero){
     if (elem != NULL){
         nodFAV *aeronava = cauta_FAV(rad, ultim, idAero);
         if (aeronava != NULL){
+            if (!are_timp_de_pregatire(elem, zborId, ora)){
+                cout << " Adaugare imposibila, aeronava are nevoie de 2h de pregatire";
+                return;
+            }
+                
             int poz = hash_RUZ(zborId);
             nodRUZ_TD *nou = new nodRUZ_TD;
             nou->idZbor = new char[strlen(zborId) + 1];
@@ -199,7 +198,7 @@ void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId
 }
 
 
-nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *idZbor, int ora){
+nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *idZbor){
     if (elem != NULL){
         int poz = hash_RUZ(idZbor);
         nodRUZ_TD * aux = elem[poz];
@@ -212,7 +211,7 @@ nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *idZbor, int ora){
     return NULL;
 }
 
-void sterge_zbor_RUZ(nodRUZ_TD **&elem, char *idZbor, int ora){
+bool sterge_zbor_RUZ(nodRUZ_TD **&elem, char *idZbor){
     if (elem != NULL){
         int poz = hash_RUZ(idZbor);
         nodRUZ_TD * aux = elem[poz];
@@ -228,10 +227,12 @@ void sterge_zbor_RUZ(nodRUZ_TD **&elem, char *idZbor, int ora){
                     aux->urm = de_sters->urm;
                     delete[] de_sters->dest;
                     delete de_sters;
+                    return true;
                 }
             }
         }
     }
+    return false;
 }
 
 void afis_RUZ(nodRUZ_TD **elem){
@@ -254,7 +255,13 @@ void salveaza_RUZ_TD_in_fisier(nodRUZ_TD **elem){
             if (elem[i] != NULL){
                 nodRUZ_TD *aux = elem[i];
                 while (aux != NULL){
-                    f << aux->idZbor << " " << aux->aeronava->idAeronava << " " << aux->dest << " " << aux->ora << endl;
+                    f << aux->idZbor;
+                    f << " ";
+                    f << aux->aeronava->idAeronava;
+                    f << " ";
+                    f << aux->dest;
+                    f << " ";
+                    f << aux->ora << endl;
                     aux = aux->urm;
                 }
             }
@@ -361,15 +368,21 @@ void adauga_REPasager(nodREP *&prim, char *idZbor, char *idR, char *n, char *p, 
         if (strcmp(aux->zbor->idZbor, idZbor) == 0){
             nodPasager *cap = aux->pasageri;
             nodPasager *nou = creeaza_pasager(n, p, idR, cost);
+            int nr_locuri_ocupate = 1;
             if (cap == NULL)
                 aux->pasageri = nou;
             else{
-                while (cap->urm != NULL)
+                while (cap->urm != NULL){
                     cap = cap->urm;
+                    nr_locuri_ocupate++;
+                }
+                if (nr_locuri_ocupate <= NR_MAX_REZERVARI)
                 cap->urm = nou;
             }
+            if (nr_locuri_ocupate <= NR_MAX_REZERVARI){
             cout << "Am adaugat pasagerul : ";
             nou->afiseaza();
+            }
             break;
         }
         aux = aux->urm;
@@ -416,7 +429,7 @@ void salveaza_REPasageri_in_fisier(nodREP *prim){
     f.close();
 }
 
-nodPasager * cautare_REPasager(nodREP *prim, char *idR){
+nodPasager *cautare_REPasager(nodREP *prim, char *idR){
     nodREP *cap = prim;
     while (cap){
         nodPasager * pasager = cap->pasageri;
@@ -454,6 +467,309 @@ bool sterge_REPasager(nodREP *prim, char *idR){
 
 /// CAR /////////////////
 
+struct nodCAR_AVL{
+    char *idRezevare;
+    int greutate, nivel_risc;
+    nodRUZ_TD *zbor;
+    nodCAR_AVL *staga, *dreapta;
+};
+
+/// INTERPRETAREA COMENZILOR ////////////
+
+
+struct paramFIFO{
+    char *text;
+    paramFIFO *next;
+};
+
+paramFIFO *insereaza_param(paramFIFO *rad, char *text){
+    paramFIFO * nou = new paramFIFO;
+    nou->text = new char[strlen(text) + 1];
+    strcpy(nou->text, text);
+    nou->next = NULL;
+    if (rad == NULL)
+        return nou;
+    else{
+        paramFIFO * aux = rad;
+        while (aux->next != NULL)
+            aux = aux->next;
+        aux->next = nou;
+        return rad;
+    }
+}
+
+paramFIFO *parseaza_comanda(paramFIFO *rad, char *text){
+    char *cuv;
+    cuv = strtok(text, " ");
+    while (cuv != NULL){
+        rad = insereaza_param(rad, cuv);
+        cuv = strtok(NULL, " ");
+    }
+    
+    return rad;
+}
+
+void interpreteaza_comanda(paramFIFO *rad, fstream &f, nodFAV *&radFAV, nodFAV *&ultimFAV, nodRUZ_TD **&elem, nodREP *& primREP){
+    paramFIFO * temp = rad;
+    int nr_param = 0;
+    if (strcmp(rad->text, "") == 0)
+        return;
+    f << time(NULL) << " - ";
+    while (temp != NULL){
+        f << temp->text << " ";
+        temp = temp->next;
+        nr_param++;
+    }
+    f << endl;
+    
+    paramFIFO *curent = rad;
+    if (curent != NULL){
+        if (strcmp(curent->text, "add") == 0){
+            curent = curent->next;
+            if (curent != NULL){
+                if (strcmp(curent->text, "FAV") == 0){
+                    if (nr_param != 6)
+                        cout << "sintaxa corecta este: add FAV id cargo nrlocuri greutateMax\n";
+                    else{
+                        curent = curent->next;
+                        char* id = curent->text;
+                        curent = curent->next;
+                        bool cargo = (strcmp(curent->text, "CARGO") == 0);
+                        curent = curent->next;
+                        int nr = atoi(curent->text);
+                        curent = curent->next;
+                        double greu = atof(curent->text);
+                        insereaza_FAV(radFAV, ultimFAV, id, cargo, nr, greu);
+                    }
+                }
+                else if (strcmp(curent->text, "RUZ") == 0){
+                    //nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId, int ora, char *dest, char *idAero
+                    if (nr_param != 6)
+                        cout << "Sintaxa corecta este: add RUZ zborId aeronavaID destinatie ora\n";
+                    else{
+                        char *idZ, *idA, *dest;
+                        curent = curent->next;
+                        idZ = curent->text;
+                        curent = curent->next;
+                        idA = curent->text;
+                        curent = curent->next;
+                        dest = curent->text;
+                        curent = curent->next;
+                        int ora = atoi(curent->text);
+                        inserare_RUZ_TD(elem, radFAV, ultimFAV, idZ, ora, dest, idA);
+                    }
+                }
+                else if (strcmp(curent->text, "REP") == 0){
+                    //nodREP *&prim, char *idZbor, char *idR, char *n, char *p, int cost
+                    if (nr_param != 7)
+                        cout << "sintaxa corecta este: add REP idZbor idRezervare num prenume pret\n";
+                    char *idzbor, *idRezervare, *nume, *prenume;
+                    int cost;
+                    curent = curent->next;
+                    idzbor = curent->text;
+                    curent = curent->next;
+                    idRezervare = curent->text;
+                    curent = curent->next;
+                    nume = curent->text;
+                    curent = curent->next;
+                    prenume = curent->text;
+                    curent = curent->next;
+                    int pret = atoi(curent->text);
+                    adauga_REPasager(primREP, idzbor, idRezervare, nume, prenume, pret);
+                }
+                else if (strcmp(curent->text, "CAR") == 0)
+                    cout << "In curs de implementare";
+            }
+            else
+                cout << "Sintaxa corenta este: add <modul> <date>\n";
+        }
+        else if (strcmp(curent->text, "update") == 0){
+            curent = curent->next;
+            if (curent){
+                if (strcmp(curent->text, "FAV") == 0){
+                    if (nr_param != 6)
+                        cout << "Sintaxa corecta este: update FAV <id> <date>";
+                    else{
+                        curent = curent->next;
+                        char* id = curent->text;
+                        curent = curent->next;
+                        bool cargo = (strcmp(curent->text, "CARGO") == 0);
+                        curent = curent->next;
+                        int nr = atoi(curent->text);
+                        curent = curent->next;
+                        double greu = atof(curent->text);
+                        nodFAV *cautat = cauta_FAV(radFAV, ultimFAV, id);
+                        if (cautat == NULL)
+                            cout << "Aeronava cu idul dat nu a fost gasita.\n";
+                        else{
+                            cautat->cargo = cargo;
+                            cautat->greutateMaxima = greu;
+                            cautat->nrLocuri = nr;
+                            cout << "Aeronava a fost modificata cu succes.\n";
+                        }
+                    }
+                }
+                else if (strcmp(curent->text, "RUZ") == 0){
+                    if (nr_param != 5)
+                        cout << "Sintaxa corecta este: update RUZ zborId destinatie ora\n";
+                    else{
+                        char *idZ, *idA, *dest;
+                        curent = curent->next;
+                        idZ = curent->text;
+                        curent = curent->next;
+                        dest = curent->text;
+                        curent = curent->next;
+                        int ora = atoi(curent->text);
+                        nodRUZ_TD* cautat = cautare_zbor_RUZ(elem, idZ);
+                        if (cautat == NULL)
+                            cout << "Zborul cautat nu a fost gasit.\n";
+                        else{
+                            cautat->dest = dest;
+                            cautat->ora = ora;
+                            cout << "Zborul a fost modificat cu succes";
+                        }
+                    }
+                }
+                else if (strcmp(curent->text, "REP") == 0){
+                    if (nr_param != 6)
+                        cout << "sintaxa corecta este: update REP idRezervare num prenume pret\n";
+                    else{
+                        char *idzbor, *idRezervare, *nume, *prenume;
+                        int cost;
+                        curent = curent->next;
+                        idRezervare = curent->text;
+                        curent = curent->next;
+                        nume = curent->text;
+                        curent = curent->next;
+                        prenume = curent->text;
+                        curent = curent->next;
+                        int pret = atoi(curent->text);
+                        nodPasager *cautat = cautare_REPasager(primREP, idRezervare);
+                        if (cautat == NULL)
+                            cout << "Pasagerul cautat nu a fost gasit.\n";
+                        else{
+                            cautat->nume = nume;
+                            cautat->prenume = prenume;
+                            cautat->costBilet = pret;
+                            cout << "Pasagerul a fost modificat cu succes.\n";
+                        }
+                    }
+                }
+                else if (strcmp(curent->text, "CAR") == 0)
+                    cout << "Functionalitate in curs de implementare.\n";
+            }
+            else
+                cout << "Sintaxa corecta este: update <modul> <id> <date>\n";
+        }
+        else if (strcmp(curent->text, "find")){
+            if (nr_param != 3)
+                cout << "Sintaxa corecta este: find <modul> <id>";
+            else{
+                curent = curent->next;
+                if (strcmp(curent->text, "FAV") == 0){
+                    curent = curent->next;
+                    cauta_FAV(radFAV, ultimFAV, curent->text)->afiseaza();
+                }
+                else if (strcmp(curent->text, "RUZ") == 0){
+                    curent = curent->next;
+                    cautare_zbor_RUZ(elem, curent->text)->afiseaza();
+                }
+                else if (strcmp(curent->text, "REP") == 0){
+                    curent = curent->next;
+                    cautare_REPasager(primREP, curent->text)->afiseaza();
+                }
+            }
+        }
+        else if (strcmp(curent->text, "delete") == 0){
+            if (nr_param != 3)
+                cout << "Sintaxa corecta este: delete <modul> <id>";
+            else{
+                curent = curent->next;
+                if (strcmp(curent->text, "FAV") == 0){
+                    curent = curent->next;
+                    if (sterge_FAV(cauta_FAV(radFAV, ultimFAV, curent->text)))
+                        cout << "Stergerea aeronavei a fost realizata cu succes.\n";
+                    else
+                        cout << "Nu s-a putut realiza stergerea aeronavei.\n";
+                }
+                else if (strcmp(curent->text, "RUZ") == 0){
+                    curent = curent->next;
+                    if (sterge_zbor_RUZ(elem, curent->text))
+                        cout << "Stergerea zborului a fost realizata cu succes.\n";
+                    else
+                        cout << "Nu s-a putut realiza stergerea zborului.\n";
+                }
+                else if (strcmp(curent->text, "REP") == 0){
+                    curent = curent->next;
+                    if (sterge_REPasager(primREP, curent->text))
+                        cout << "Stergerea pasagerului a fost realizata cu succes.\n";
+                    else
+                        cout << "Nu s-a putut realiza stergerea pasagerului.\n";
+                }
+            }
+        }
+        else if (strcmp(curent->text, "check") == 0){
+            if (nr_param != 3)
+                cout << "Sintaxa corecta este : check <modul> <id>\n";
+            else{
+                curent = curent->next;
+                if (strcmp(curent->text, "REP") == 0){
+                    curent = curent->next;
+                    nodREP *auxrep = primREP;
+                    int ocupate = 0;
+                    while (auxrep != NULL){
+                        if (strcmp(auxrep->zbor->idZbor, curent->text) == 0){
+                            cout << "Ocupate:\n";
+                            nodPasager * pasager = auxrep->pasageri;
+                            while(pasager){
+                                ocupate++;
+                                pasager->afiseaza();
+                                pasager = pasager->urm;
+                            }
+                            break;
+                        }
+                        auxrep = auxrep->urm;
+                    }
+                    cout << "Disponibile : " << NR_MAX_REZERVARI - ocupate << endl;
+                }
+                else
+                    cout << "Functionalitate in curs de implementare.\n";
+            }
+        }
+        else if (strcmp(curent->text, "costs") == 0){
+            if (nr_param != 3)
+                cout << "Sintaxa corecta este : costs <modul> <id>\n";
+            else{
+                curent = curent->next;
+                if (strcmp(curent->text, "REP") == 0)
+                {
+                    curent = curent->next;
+                    nodREP *auxrep = primREP;
+                    int cost_Total = 0;
+                    while (auxrep != NULL){
+                        if (strcmp(auxrep->zbor->idZbor, curent->text) == 0){
+                            nodPasager * pasager = auxrep->pasageri;
+                            while(pasager){
+                                cost_Total += pasager->costBilet;
+                                pasager = pasager->urm;
+                            }
+                            break;
+                        }
+                        auxrep = auxrep->urm;
+                    }
+                    if (cost_Total == 0)
+                        cout << "Nici un pasager nu s-a ambarcat.\n";
+                    else
+                        cout << "Costul total este de " << cost_Total << endl;
+
+                }
+                else
+                    cout << "Functionalitate in curs de implementare.\n";
+            }
+        }
+    }
+}
+
 
 
 int main(int argc, const char * argv[]) {
@@ -462,65 +778,30 @@ int main(int argc, const char * argv[]) {
     radFAV = ultimFAV = NULL;
     
     populeaza_FAV_din_fisier(radFAV, ultimFAV);
-    //afsieaza_FAV(radFAV, ultimFAV);
-    cout << endl;
-    
-    /*
-    nodFAV * x= cauta_FAV(radFAV, ultimFAV, "23AA");
-    if (x!= NULL) {
-        x->afiseaza();
-    }
-    else
-        cout << "nope";
-    
-    sterge_FAV(cauta_FAV(radFAV, ultimFAV, "23A"));
-    afsieaza_FAV(radFAV, ultimFAV);
-     */
     
     nodRUZ_TD ** elem = NULL;
     elem = aloca_RUZ_TD(elem);
     
     citeste_RUZ_TD_din_fisier(elem, radFAV, ultimFAV);
     
-/*
-    //inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, char *zborId, int ora, char *dest, char *idAero)
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, "111x", 11, "Mallorca", "23A");
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, "11xvv", 12, "Cluj", "23A");
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, "vx", 12, "Madrid", "55X");
-    inserare_RUZ_TD(elem, radFAV, ultimFAV, "vx12", 10, "Brugges", "23AA");
-
-    */
-    
-    //afis_RUZ(elem);
-    
-    //salveaza_RUZ_TD_in_fisier(elem);
-    
-    cout << endl;
     nodREP * primREP = NULL;
     primREP = populeaza_REP_cu_zborurile_distincte(elem);
-    //
+    
     adauga_REPasageri_din_fisier(primREP);
-    cout << endl;
-    afisREP(primREP);
+    cout << "\nDatele din fisier au fost adaugate cu succes.\n";
     
+    fstream f("/Users/macbookproritena/Documents/xcode projects/c++/aerodrom/aerodrom/log.txt", ios::app);
+    cout << "\nIntroduceti comanda dorita:\n";
+    char buffer[257];
+    do{
+        paramFIFO *rad = NULL;
+        cout << ">: ";
+        cin.getline(buffer, 256);
+        rad = parseaza_comanda(rad, buffer);
+        interpreteaza_comanda(rad, f, radFAV, ultimFAV, elem, primREP);
+    } while (strcmp(buffer, "exit") != 0);
+    f.close();
     
-    
-    /*
-     paramFIFO *rad = NULL;
-     cout << "Introduceti comanda dorita:\n";
-     char buffer[257];
-     do{
-     cout << ">: ";
-     cin.getline(buffer, 256);
-     char *cuv;
-     cuv = strtok(buffer, " ");
-     while (cuv != NULL){
-     rad = insereaza_param(rad, cuv);
-     cuv = strtok(NULL, " ");
-     }
-     afiseaza_FIFO(rad);
-     }while(strcmp(buffer, "exit") != 0);
-     */
     
     return 0;
 }
