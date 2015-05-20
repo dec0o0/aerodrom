@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <cmath>
 #define MARIME_TD 100
 using namespace std;
 
@@ -169,11 +170,28 @@ int hash_RUZ(char *id){
     return ans % MARIME_TD;
 }
 
+bool zbor_programabil_RUZ(nodRUZ_TD *rad, char *id, int ora){
+    if (rad == NULL)
+        return true;
+    nodRUZ_TD * aux= rad;
+    while (aux!=NULL){
+        int delta = aux->ora - ora;
+        if (strcmp(aux->aeronava->idAeronava, id) == 0 && abs(delta) > 1)
+            return true;
+        aux = aux->urm;
+    }
+    return false;
+}
+
 void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, int ora, char *dest, char *id){
     if (elem != NULL){
         nodFAV *aeronava = cauta_FAV(rad, ultim, id);
         if (aeronava != NULL){
             int poz = hash_RUZ(aeronava->idAeronava);
+            if (!zbor_programabil_RUZ(elem[poz], id, ora)){
+                cout << "ERROR: Zborul nu poate fi programat datorita orei nepotrivite.\n";
+                return;
+            }
             nodRUZ_TD *nou = new nodRUZ_TD;
             nou->aeronava = aeronava;
             nou->ora = ora;
@@ -195,6 +213,7 @@ void inserare_RUZ_TD(nodRUZ_TD **&elem, nodFAV *rad, nodFAV *ultim, int ora, cha
     }
 }
 
+
 nodRUZ_TD * cautare_zbor_RUZ(nodRUZ_TD **elem, char *id, int ora){
     if (elem != NULL){
         int poz = hash_RUZ(id);
@@ -212,7 +231,21 @@ void sterge_zbor_RUZ(nodRUZ_TD **&elem, char *id, int ora){
     if (elem != NULL){
         int poz = hash_RUZ(id);
         nodRUZ_TD * aux = elem[poz];
-        
+        if (aux != NULL){
+            if (strcmp(aux->aeronava->idAeronava, id) == 0 && aux->ora == ora){
+                elem[poz] = aux->urm;
+            }
+            else{
+                while (aux->urm != NULL && strcmp(aux->urm->aeronava->idAeronava, id) != 0 && aux->urm->ora != ora)
+                    aux = aux->urm;
+                if (strcmp(aux->urm->aeronava->idAeronava, id) == 0 && aux->urm->ora == ora){
+                    nodRUZ_TD * de_sters = aux->urm;
+                    aux->urm = de_sters->urm;
+                    delete[] de_sters->dest;
+                    delete de_sters;
+                }
+            }
+        }
     }
 }
 
@@ -229,14 +262,46 @@ void afis_RUZ(nodRUZ_TD **elem){
     }
 }
 
+void salveaza_RUZ_TD_in_fisier(nodRUZ_TD **elem){
+    if (elem != NULL){
+        fstream f("/Users/macbookproritena/Documents/xcode projects/c++/aerodrom/aerodrom/program.txt", ios::out);
+        for (int i = 0; i < MARIME_TD; i++)
+            if (elem[i] != NULL){
+                nodRUZ_TD *aux = elem[i];
+                while (aux != NULL){
+                    f << aux->aeronava->idAeronava << " " << aux->dest << " " << aux->ora << endl;
+                    aux = aux->urm;
+                }
+            }
+        f.close();
+    }
+}
+
+void citeste_RUZ_TD_din_fisier(nodRUZ_TD **elem, nodFAV* rad, nodFAV *ultim){
+    ifstream f("/Users/macbookproritena/Documents/xcode projects/c++/aerodrom/aerodrom/program.txt");
+    while (!f.eof()){
+        char buff[256], buff1[256];
+        int ora;
+        f >> buff;
+        f >> buff1;
+        f >> ora;
+        inserare_RUZ_TD(elem, rad, ultim, ora, buff1, buff);
+    }
+    f.close();
+}
+
+/// REP
+
+
 int main(int argc, const char * argv[]) {
     
     nodFAV *radFAV, *ultimFAV;
     radFAV = ultimFAV = NULL;
     
-    cout << "FAV";
+    cout << "FAV\n";
     populeaza_FAV_din_fisier(radFAV, ultimFAV);
-    afsieaza_FAV(radFAV, ultimFAV);
+    //afsieaza_FAV(radFAV, ultimFAV);
+    cout << endl;
     
     /*
     nodFAV * x= cauta_FAV(radFAV, ultimFAV, "23AA");
@@ -253,12 +318,15 @@ int main(int argc, const char * argv[]) {
     nodRUZ_TD ** elem = NULL;
     elem = aloca_RUZ_TD(elem);
     
+    citeste_RUZ_TD_din_fisier(elem, radFAV, ultimFAV);
+    /*
     inserare_RUZ_TD(elem, radFAV, ultimFAV, 11, "Mallorca", "23A");
+    inserare_RUZ_TD(elem, radFAV, ultimFAV, 12, "Cluj", "23A");
     inserare_RUZ_TD(elem, radFAV, ultimFAV, 12, "Madrid", "55X");
     inserare_RUZ_TD(elem, radFAV, ultimFAV, 10, "Brugges", "23AA");
+     */
     
     afis_RUZ(elem);
-    
     
     /*
      paramFIFO *rad = NULL;
